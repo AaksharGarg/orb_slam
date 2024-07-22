@@ -1,0 +1,2 @@
+ament_prepend_unique_value GZ_SIM_RESOURCE_PATH "@CMAKE_CURRENT_SOURCE_DIR@/model"
+GAZEBO_RESOURCE_PATH=~/home/aakshar/orbslam_ws/src/orb_slam/robot/description:${GAZEBO_RESOURCE_PATH}

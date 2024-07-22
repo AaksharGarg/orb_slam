@@ -1,0 +1,135 @@
+<?xml version="1.0" ?>
+<robot name="robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find robot_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find robot_description)/urdf/robot.trans" />
+<xacro:include filename="$(find robot_description)/gazebo/robot_plugins.gazebo" />
+<link name="base_link">
+  <inertial>
+    <origin xyz="-0.005302226425128791 -0.0022983537829343297 0.09401485302570205" rpy="0 0 0"/>
+    <mass value="24.75013088334115"/>
+    <inertia ixx="0.563455" iyy="0.715606" izz="1.030558" ixy="-0.005287" iyz="0.003318" ixz="0.008679"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find robot_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find robot_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+
+
+
+
+<link name="wheel_left_1">
+  <inertial>
+    <origin xyz="3.828934417079294e-07 -0.023475397336640502 -3.022445128654516e-07" rpy="0 0 0"/>
+    <mass value="2.2573668510801816"/>
+    <inertia ixx="0.002744" iyy="0.005023" izz="0.002744" ixy="-0.0" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.000385 0.216178 -0.028568" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find robot_description)/meshes/wheel_left_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.000385 0.216178 -0.028568" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find robot_description)/meshes/wheel_left_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="wheel_right_1">
+  <inertial>
+    <origin xyz="1.5484708396193338e-07 0.023474886620335506 -3.02244513264438e-07" rpy="0 0 0"/>
+    <mass value="2.2573668510801825"/>
+    <inertia ixx="0.002744" iyy="0.005023" izz="0.002744" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.000329 -0.216403 -0.028568" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find robot_description)/meshes/wheel_right_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.000329 -0.216403 -0.028568" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find robot_description)/meshes/wheel_right_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="robot/base_link/realsense">
+  <inertial>
+    <origin xyz="0.034156087707450974 0.006811411779674115 0.033424133532492684" rpy="0 0 1.57"/>
+    <mass value="1.2360865195081703"/>
+    <inertia ixx="0.000634" iyy="0.001022" izz="0.001067" ixy="-1e-06" iyz="-0.0" ixz="-0.000132"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.034156087707450974 0.006811411779674115 0.033424133532492684" rpy="0 0 1.57"/>
+    <geometry>
+      <mesh filename="file://$(find robot_description)/meshes/RealSense_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.034156087707450974 0.006811411779674115 0.033424133532492684" rpy="0 0 1.57"/>
+    <geometry>
+      <mesh filename="file://$(find robot_description)/meshes/RealSense_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="camera_L">
+</link>
+
+<link name="camera_R">
+</link>
+
+<joint name="Revolute 3" type="continuous">
+  <origin xyz="-0.000385 -0.216178 0.028568" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_left_1"/>
+  <axis xyz="0.0 -1.0 0.0"/>
+</joint>
+
+<joint name="Revolute 4" type="continuous">
+  <origin xyz="-0.000329 0.216403 0.028568" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_right_1"/>
+  <axis xyz="-0.0 -1.0 -0.0"/>
+</joint>
+
+<joint name="RealSense" type="fixed">
+  <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="robot/base_link/realsense"/>
+</joint>
+
+<joint name="Camera_R" type="fixed">
+  <origin xyz="-0.125858 0.0375 0.146059" rpy="0 0 3.14"/>
+  <parent link="robot/base_link/realsense"/>
+  <child link="camera_R"/>
+</joint>
+
+<joint name="Camera_L" type="fixed">
+  <origin xyz="-0.125858 -0.052506 0.146059" rpy="0 0 3.14"/>
+  <parent link="robot/base_link/realsense"/>
+  <child link="camera_L"/>
+</joint>
+
+
+
+</robot>
