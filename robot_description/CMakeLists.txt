@@ -11,10 +11,10 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-install(
-  PROGRAMS
-  DESTINATION lib/${PROJECT_NAME}
-)
+
+find_package(rclpy REQUIRED)
+# execute_process(COMMAND python scripts/disparity_node.py 
+#     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
 
 install(
@@ -26,8 +26,15 @@ install(
   worlds
   config
   model
+  scripts
   DESTINATION share/${PROJECT_NAME}/
   )
+
+
+  install(PROGRAMS
+  scripts/dispartiy_node.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
   if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
