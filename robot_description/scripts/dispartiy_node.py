@@ -1,88 +1,72 @@
 #! /usr/bin/env python3
 
 from message_filters import Subscriber, TimeSynchronizer
-from geometry_msgs.msg import PoseArray
-import rclpy
-from rclpy.node import Node
-import time
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+import rclpy
+from rclpy.node import Node
 import cv2
-from matplotlib import pyplot as plt
 import numpy as np
 
-class Sterio_out(Node):
-    """docstring for swift"""
+class StereoOut(Node):
+    """Node to compute and display disparity image from stereo camera feeds."""
     def __init__(self):
-        super().__init__('sterio_out')
+        super().__init__('stereo_out')
 
-        block_size = 11
-        min_disp = -128
-        max_disp = 128
-        num_disp = max_disp - min_disp
-        uniquenessRatio = 5
-        speckleWindowSize = 200
-        speckleRange = 2
-        disp12MaxDiff = -1
+        # StereoSGBM parameters
+        block_size = 17  # Window size for the stereo block matching
+        min_disp = 16    # Minimum possible disparity value
+        num_disp = 128 - min_disp  # Maximum disparity minus minimum disparity
 
         self.stereo = cv2.StereoSGBM_create(
-    minDisparity=min_disp,
-    numDisparities=num_disp,
-    blockSize=block_size,
-    uniquenessRatio=uniquenessRatio,
-    speckleWindowSize=speckleWindowSize,
-    speckleRange=speckleRange,
-    disp12MaxDiff=disp12MaxDiff,
-    P1=8 * 1 * block_size * block_size,
-    P2=32 * 1 * block_size * block_size,
-)
+            minDisparity=min_disp,
+            numDisparities=num_disp,
+            blockSize=block_size,
+            uniquenessRatio=10,
+            speckleWindowSize=100,
+            speckleRange=32,
+            disp12MaxDiff=0,
+            P1=8 * 1 * block_size * block_size,
+            P2=32 * 1 * block_size * block_size,
+        )
 
         self.bridge = CvBridge()
 
-        self.camera_R_sub = Subscriber(self, Image, "/camera_L" )
-        self.camera_L_sub = Subscriber(self, Image, "/camera_R")
+        self.camera_R_sub = Subscriber(self, Image, "/camera_R")
+        self.camera_L_sub = Subscriber(self, Image, "/camera_L")
 
-
-        sync = TimeSynchronizer([self.camera_L_sub, self.camera_R_sub], queue_size = 10)
-        sync.registerCallback(self.SyncCallback)
+        sync = TimeSynchronizer([self.camera_L_sub, self.camera_R_sub], queue_size=10)
+        sync.registerCallback(self.sync_callback)
     
-    def callback_left(self, msg):
-        pass
-    
-    def callback_right(self, msg):
-        pass
+    def sync_callback(self, left_feed, right_feed):
+        # Convert ROS Image messages to OpenCV format
+        cv_image_L = self.bridge.imgmsg_to_cv2(left_feed, desired_encoding='passthrough')
+        cv_image_R = self.bridge.imgmsg_to_cv2(right_feed, desired_encoding='passthrough')
 
-    def SyncCallback(self, Left_Feed, Right_Feed): 
-        #To obtain both feeds, convert them to cv2 data, then to BGR
+        # Convert images to grayscale
+        gray_L = cv2.cvtColor(cv_image_L, cv2.COLOR_BGR2GRAY)
+        gray_R = cv2.cvtColor(cv_image_R, cv2.COLOR_BGR2GRAY)
 
-        #converting to CV2 format
-        cv_image_L = self.bridge.imgmsg_to_cv2(Left_Feed, desired_encoding='passthrough')
-        cv_image_R = self.bridge.imgmsg_to_cv2(Right_Feed, desired_encoding='passthrough')
+        # Compute disparity map using StereoSGBM
+        disparity = self.stereo.compute(gray_L, gray_R).astype(np.float32) / 16.0
 
-        Limage_rgb = cv2.cvtColor(cv_image_L, cv2.COLOR_BGR2GRAY) 
-        Rimage_rgb = cv2.cvtColor(cv_image_R, cv2.COLOR_BGR2GRAY) 
-        # stereo = cv2.StereoBM_create(numDisparities=16, blockSize=15)
-        # disparity = stereo.compute(Limage_rgb,Rimage_rgb)
-        # plt.imshow(disparity,'gray')
-        # # plt.show()
-        # print("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
-        cv2.imshow("cam_l", Limage_rgb)
-        # # cv2.imshow("cam_r", Rimage_rgb)
-        # cv2.waitKey(1)
-        disparity_SGBM = self.stereo.compute(Limage_rgb, Rimage_rgb)
+        # Normalize the disparity map for better visualization
+        disparity = (disparity - min_disp) / num_disp
+        disparity = np.clip(disparity, 0, 1)
 
-        # Normalize the values to a range from 0..255 for a grayscale image
-        disparity_SGBM = cv2.normalize(disparity_SGBM, disparity_SGBM, alpha=255,
-                                    beta=0, norm_type=cv2.NORM_MINMAX)
-        disparity_SGBM = np.uint8(disparity_SGBM)
+        # Convert to 8-bit for display
+        disparity_display = (disparity * 255).astype(np.uint8)
 
-        cv2.imshow("Disparity", disparity_SGBM)
+        # Display the grayscale images and disparity map
+        cv2.imshow("Left Image", gray_L)
+        cv2.imshow("Disparity", disparity_display)
         cv2.waitKey(1)
+
 if __name__ == "__main__":
     rclpy.init(args=None)
-    swift_drone = Sterio_out()
-    cv2.destroyAllWindows()
-    rclpy.spin(swift_drone)
-    swift_drone.destroy_node()
+    stereo_node = StereoOut()
+    rclpy.spin(stereo_node)
+    stereo_node.destroy_node()
     rclpy.shutdown()
+    cv2.destroyAllWindows()
     exit()
