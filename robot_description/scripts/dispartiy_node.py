@@ -1,72 +1,58 @@
 #! /usr/bin/env python3
 
-from message_filters import Subscriber, TimeSynchronizer
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
 import rclpy
 from rclpy.node import Node
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+import open3d as o3d
 import cv2
 import numpy as np
 
-class StereoOut(Node):
-    """Node to compute and display disparity image from stereo camera feeds."""
+class StereoReconstruction(Node):
     def __init__(self):
-        super().__init__('stereo_out')
-
-        # StereoSGBM parameters
-        block_size = 17  # Window size for the stereo block matching
-        min_disp = 16    # Minimum possible disparity value
-        num_disp = 128 - min_disp  # Maximum disparity minus minimum disparity
-
-        self.stereo = cv2.StereoSGBM_create(
-            minDisparity=min_disp,
-            numDisparities=num_disp,
-            blockSize=block_size,
-            uniquenessRatio=10,
-            speckleWindowSize=100,
-            speckleRange=32,
-            disp12MaxDiff=0,
-            P1=8 * 1 * block_size * block_size,
-            P2=32 * 1 * block_size * block_size,
-        )
+        super().__init__('stereo_reconstruction')
 
         self.bridge = CvBridge()
 
-        self.camera_R_sub = Subscriber(self, Image, "/camera_R")
-        self.camera_L_sub = Subscriber(self, Image, "/camera_L")
+        #subscriber 
+        self.camera_L_sub = self.create_subscription(Image, '/camera_L', self.callback_left, 10)
+        self.camera_R_sub = self.create_subscription(Image, '/camera_R', self.callback_right, 10)
 
-        sync = TimeSynchronizer([self.camera_L_sub, self.camera_R_sub], queue_size=10)
-        sync.registerCallback(self.sync_callback)
-    
-    def sync_callback(self, left_feed, right_feed):
-        # Convert ROS Image messages to OpenCV format
-        cv_image_L = self.bridge.imgmsg_to_cv2(left_feed, desired_encoding='passthrough')
-        cv_image_R = self.bridge.imgmsg_to_cv2(right_feed, desired_encoding='passthrough')
+        self.left_image = None
+        self.right_image = None
 
-        # Convert images to grayscale
-        gray_L = cv2.cvtColor(cv_image_L, cv2.COLOR_BGR2GRAY)
-        gray_R = cv2.cvtColor(cv_image_R, cv2.COLOR_BGR2GRAY)
+    def callback_left(self, msg):
+        self.left_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
 
-        # Compute disparity map using StereoSGBM
-        disparity = self.stereo.compute(gray_L, gray_R).astype(np.float32) / 16.0
+    def callback_right(self, msg):
+        self.right_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+        self.process_images()
 
-        # Normalize the disparity map for better visualization
-        disparity = (disparity - min_disp) / num_disp
-        disparity = np.clip(disparity, 0, 1)
+    def process_images(self):
+        if self.left_image is None or self.right_image is None:
+            return
 
-        # Convert to 8-bit for display
-        disparity_display = (disparity * 255).astype(np.uint8)
+        #open3d obj from array
+        left_o3d = o3d.geometry.Image(self.left_image)
+        right_o3d = o3d.geometry.Image(self.right_image)
 
-        # Display the grayscale images and disparity map
-        cv2.imshow("Left Image", gray_L)
-        cv2.imshow("Disparity", disparity_display)
+        #stereo matching 
+        stereo = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            o3d.geometry.PointCloud.create_from_stereo(left_o3d, right_o3d)
+        )
+
+        # stereo img to array - better visualisation
+        disparity = np.asarray(stereo)
+        
+        # normalisation
+        disparity_normalized = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+        disparity_normalized = np.uint8(disparity_normalized)
+
+        cv2.imshow('Disparity', disparity_normalized)
         cv2.waitKey(1)
 
 if __name__ == "__main__":
     rclpy.init(args=None)
-    stereo_node = StereoOut()
+    stereo_node = StereoReconstruction()
     rclpy.spin(stereo_node)
-    stereo_node.destroy_node()
     rclpy.shutdown()
-    cv2.destroyAllWindows()
-    exit()

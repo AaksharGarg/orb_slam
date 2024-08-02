@@ -33,6 +33,7 @@ install(
 
   install(PROGRAMS
   scripts/dispartiy_node.py
+  scripts/open3dscript.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

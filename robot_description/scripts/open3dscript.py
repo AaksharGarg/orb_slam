@@ -5,8 +5,8 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import open3d as o3d
-import cv2
 import numpy as np
+import cv2
 
 class StereoReconstruction(Node):
     def __init__(self):
@@ -14,7 +14,7 @@ class StereoReconstruction(Node):
 
         self.bridge = CvBridge()
 
-        #subscriber 
+        #subscriber
         self.camera_L_sub = self.create_subscription(Image, '/camera_L', self.callback_left, 10)
         self.camera_R_sub = self.create_subscription(Image, '/camera_R', self.callback_right, 10)
 
@@ -32,24 +32,24 @@ class StereoReconstruction(Node):
         if self.left_image is None or self.right_image is None:
             return
 
-        #open3d obj from array
-        left_o3d = o3d.geometry.Image(self.left_image)
-        right_o3d = o3d.geometry.Image(self.right_image)
+        #convert img to gray
+        left_gray = cv2.cvtColor(self.left_image, cv2.COLOR_BGR2GRAY)
+        right_gray = cv2.cvtColor(self.right_image, cv2.COLOR_BGR2GRAY)
 
-        #stereo matching 
-        stereo = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            o3d.geometry.PointCloud.create_from_stereo(left_o3d, right_o3d)
-        )
-
-        # stereo img to array - better visualisation
-        disparity = np.asarray(stereo)
+        #stereo matching
+        stereo = cv2.StereoBM_create(numDisparities=16, blockSize=15)
         
-        # normalisation
+        #disparity map
+        disparity = stereo.compute(left_gray, right_gray)
+
+        #normalisation
         disparity_normalized = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
         disparity_normalized = np.uint8(disparity_normalized)
 
+
         cv2.imshow('Disparity', disparity_normalized)
         cv2.waitKey(1)
+
 
 if __name__ == "__main__":
     rclpy.init(args=None)
