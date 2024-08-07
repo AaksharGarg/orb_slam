@@ -46,9 +46,27 @@ class StereoReconstruction(Node):
         disparity_normalized = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
         disparity_normalized = np.uint8(disparity_normalized)
 
-
         cv2.imshow('Disparity', disparity_normalized)
         cv2.waitKey(1)
+
+        #convert disparity mao to point cloud
+        h,w = disparity.shape #returns a tuple of the number of rows, columns, and channels(rgbd img)
+        focal_len = 1.0
+        baseline = 0.1
+        pt_cloud = o3d.geometry.PointCloud()
+        points= []
+        for y in range(h):
+            for x in range(w):
+                d=disparity[y,x] / 16.0
+                if d>0 :
+                    x3 = (x - w / 2) * d / focal_len
+                    y3 = (y - h / 2) * d / focal_len
+                    z3 = baseline * focal_len / d
+                    points.append([x3, y3, z3])
+        
+        pt_cloud.points = o3d.utility.Vector3dVector(points)
+        #visualise 
+        o3d.visualization.draw_geometries([pt_cloud])
 
 
 if __name__ == "__main__":
